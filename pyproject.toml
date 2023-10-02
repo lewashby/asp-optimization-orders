@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "asp-optimization-orders"
+version = "0.1.0"
+description = ""
+authors = ["Luis Angel <luis.rodriguezreiners@gmail.com>"]
+readme = "README.md"
+packages = [{include = "asp_optimization_orders"}]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+dumbo-asp = "0.0.37"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
