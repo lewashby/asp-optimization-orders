@@ -1,6 +1,6 @@
 from clingo import Control
 from dumbo_asp.primitives import Model
-from utils import read_file, create_json_object, logger
+from utils import read_file, logger
 from generator import Generator
 from context import Context
 import time
@@ -37,14 +37,9 @@ def main():
             control.add(f"{facts}\n{ENCODING}")
             control.ground([("base", [])], context=Context())
             model = Model.of_control(control)
-            res = model.as_facts.split('\n')
+            _ = model.as_facts.split('\n')
             execution_time = round(time.time() - start_time, 2)
             run_times.append(execution_time)
-            # res = filter(lambda x: x["quantity"] != 0, map(lambda y: create_json_object(y), res))
-            # res = list(res)
-            # print(res)
-            # print(generator.get_shippings_costs())
-            # print(generator.calculate_cost(res))
 
         except Exception as e:
             pass

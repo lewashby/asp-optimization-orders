@@ -14,5 +14,9 @@ def create_json_object(result):
         "quantity": int(splitted[2][0])
     }
 
+def parse_response(result):
+    res = filter(lambda x: x["quantity"] != 0, map(lambda y: create_json_object(y), result))
+    return list(res)
+
 def logger(code, msg):
     return
