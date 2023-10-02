@@ -9,6 +9,7 @@ packages = [{include = "asp_optimization_orders"}]
 [tool.poetry.dependencies]
 python = "^3.10"
 dumbo-asp = "0.0.37"
+tqdm = "^4.66.1"
 
 
 [build-system]
