@@ -24,13 +24,14 @@ class Solver:
     @staticmethod
     def calculate_cost(result: list, p_prices: list, w_shipping_cost: list, w_threshold: list):
         total = 0
-
+        count = 0
         for i, cost in enumerate(w_shipping_cost):
             index = i+1
             warehouse_allocations = list(filter(lambda x: x['warehouse'] == index, result))
             if (len(warehouse_allocations) > 0):
+                count += 1
                 spent = reduce(lambda sum, x: sum + x['quantity']*p_prices[x['product']-1], warehouse_allocations, 0)
                 if spent > w_threshold[i]:
                     cost = 0
                 total+=cost
-        return total
+        return total, count

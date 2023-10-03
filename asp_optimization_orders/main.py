@@ -27,16 +27,18 @@ def sample():
     p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
     greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
     allocations = greedy.allocate_items()
-    cost = greedy.calculate_costs(allocations)
+    cost, count = greedy.calculate_costs(allocations)
     print("Greedy solution")
     print(allocations)
+    print(f"Shippings created: {count}")
     print(f"Total shipping cost: {cost}")
     print()
 
     result = solver.solve(facts)
-    cost = solver.calculate_cost(result, p_prices, w_shipping_costs, w_free_shipping)
+    cost, count = solver.calculate_cost(result, p_prices, w_shipping_costs, w_free_shipping)
     print("ASP solution")
     print(result)
+    print(f"Shippings created: {count}")
     print(f"Total shipping cost: {cost}")
 
 def main():
@@ -59,7 +61,9 @@ def main():
     generator = Generator()
     run_times = []
     total_asp_cost = 0
+    total_asp_count = 0
     total_greedy_cost = 0
+    total_greedy_count = 0
     for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
         t_products = random.randint(1, max_products)
@@ -72,12 +76,14 @@ def main():
             execution_time = round(time.time() - start_time, 2)
             run_times.append(execution_time)
 
-            asp_cost = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
+            asp_cost, asp_count = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
             total_asp_cost += asp_cost
+            total_asp_count += asp_count
 
             greedy_result = greedy.allocate_items()
-            greedy_cost = greedy.calculate_costs(greedy_result)
+            greedy_cost, greedy_count = greedy.calculate_costs(greedy_result)
             total_greedy_cost += greedy_cost
+            total_greedy_count += greedy_count
 
         except Exception as e:
             pass
@@ -85,7 +91,9 @@ def main():
     if len(run_times) > 0:
         print(f"Solutions found: {len(run_times)}")
         print(f"Mean execution time: {mean(run_times)}")
+        print(f"Total ASP Shippings created: {total_asp_count}")
         print(f"Total ASP cost: {total_asp_cost}")
+        print(f"Total Greedy Shippings created: {total_greedy_count}")
         print(f"Total Greedy cost: {total_greedy_cost}")
     else:
         print("No solutions found")

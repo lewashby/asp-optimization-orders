@@ -43,7 +43,7 @@ class Greedy:
                     else:
                         allocations[best_warehouse] = [(product_id, quantity)]
                 else:
-                    updated_requirements[product_id] = product_quantity
+                    updated_requirements.append((product_id, product_quantity))
 
             updated_available_warehouses = list(set(available_warehouses) - set(allocations.keys()))
 
@@ -80,6 +80,6 @@ class Greedy:
             if spent > self.__w_shipping_threshold[index]:
                 cost = 0
             total+=cost
-        return total
+        return total, len(allocations.keys())
 
 

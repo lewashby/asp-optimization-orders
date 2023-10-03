@@ -8,9 +8,10 @@ max_free_shipping_threshold = 60
 
 class Generator:
 
-    __product_prices = []
-    __shippings_costs = []
-    __shipping_thresholds = []
+    def __init__(self):
+        self.__product_prices = []
+        self.__shippings_costs = []
+        self.__shipping_thresholds = []
 
     def get_product_prices(self):
         return self.__product_prices
