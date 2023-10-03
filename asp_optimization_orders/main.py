@@ -59,7 +59,8 @@ def main():
 
     solver = Solver("./encoding.asp")
     generator = Generator()
-    run_times = []
+    asp_run_times = []
+    greedy_run_times = []
     total_asp_cost = 0
     total_asp_count = 0
     total_greedy_cost = 0
@@ -71,16 +72,19 @@ def main():
         p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
         greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
         try:
-            start_time = time.time()
+            start_time_asp = time.time()
             asp_result = solver.solve(facts)
-            execution_time = round(time.time() - start_time, 2)
-            run_times.append(execution_time)
+            execution_time = round(time.time() - start_time_asp, 2)
+            asp_run_times.append(execution_time)
 
             asp_cost, asp_count = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
             total_asp_cost += asp_cost
             total_asp_count += asp_count
 
+            start_time_greedy = time.time()
             greedy_result = greedy.allocate_items()
+            execution_time = round(time.time() - start_time_greedy, 2)
+            greedy_run_times.append(execution_time)
             greedy_cost, greedy_count = greedy.calculate_costs(greedy_result)
             total_greedy_cost += greedy_cost
             total_greedy_count += greedy_count
@@ -88,11 +92,12 @@ def main():
         except Exception as e:
             pass
 
-    if len(run_times) > 0:
-        print(f"Solutions found: {len(run_times)}")
-        print(f"Mean execution time: {mean(run_times)}")
+    if len(asp_run_times) > 0:
+        print(f"Solutions found: {len(asp_run_times)}")
+        print(f"Mean ASP execution time: {round(mean(asp_run_times),2)}")
         print(f"Total ASP Shippings created: {total_asp_count}")
         print(f"Total ASP cost: {total_asp_cost}")
+        print(f"Mean Greedy execution time: {round(mean(greedy_run_times),2)}")
         print(f"Total Greedy Shippings created: {total_greedy_count}")
         print(f"Total Greedy cost: {total_greedy_cost}")
     else:
