@@ -4,7 +4,7 @@ max_shipping_cost = 20
 max_price = 10
 max_request_allowed = 20
 max_stock = 30
-max_free_shipping_threshold = 15
+max_free_shipping_threshold = 60
 
 class Generator:
 
@@ -28,6 +28,12 @@ class Generator:
         output = "products({}).".format(t_products)
         facts = []
         
+        products_prices = []
+        products_requests = []
+        warehouses_shipping_costs = []
+        warehouses_free_shipping = []
+        stocks_matrix = [[0 for _ in range(t_warehouse)]]*t_products
+        
         # warehouse and product facts
         for p in range(1, t_products+1):
             facts.append("product({}).".format(p))
@@ -36,6 +42,8 @@ class Generator:
             self.__product_prices.append(price)
             facts.append("product_price({}, {}).".format(p, price))
             facts.append("product_request({}, {}).".format(p, request))
+            products_prices.append(price)
+            products_requests.append(request)
         
         for w in range(1, t_warehouse+1):
             facts.append("warehouse({}).".format(w))
@@ -45,19 +53,24 @@ class Generator:
             self.__shipping_thresholds.append(free_shipping_threshold)
             facts.append("warehouse_shipping_cost({}, {}).".format(w, shipping_cost))
             facts.append("warehouse_free_shipping({}, {}).".format(w, free_shipping_threshold))
+            warehouses_shipping_costs.append(shipping_cost)
+            warehouses_free_shipping.append(free_shipping_threshold)
 
         # stocks facts
         for p in range(1, t_products+1):
+            p_stocks = []
             for w in range(1, t_warehouse+1):
                 stock = random.randint(0, max_stock)
                 facts.append("products_in_warehouse({}, {}, {}).".format(p, w, stock))
-            
+                p_stocks.append(stock)
+            stocks_matrix[p-1] = p_stocks
+
         facts = " ".join(facts)
 
 
         output = f"{output} {facts}"
         
-        return output
+        return output, products_prices, products_requests, warehouses_shipping_costs, warehouses_free_shipping, stocks_matrix
 
     def calculate_cost(self, allocations: list[dict]):
         warehouses = set()
