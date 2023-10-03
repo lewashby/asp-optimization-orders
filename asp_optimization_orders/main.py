@@ -1,16 +1,43 @@
-from clingo import Control
-from dumbo_asp.primitives import Model
-from utils import read_file, logger
 from generator import Generator
-from context import Context
 import time
 import argparse
 import random
 from statistics import mean
 from tqdm import tqdm
+from greedy import Greedy
+from solver import Solver
+import sys
 
-max_warehouses = 10
-max_products = 10
+max_warehouses = 20
+max_products = 20
+
+def sample():
+    solver = Solver("./encoding.asp")
+    generator = Generator()
+    t_warehouses = 3
+    t_products = 3
+    facts, p_prices, p_requests, w_shipping_costs, w_free_shipping, s_matrix = generator.generate_random_input(t_warehouses, t_products)
+
+    print(f"products requirements: {p_requests}")
+    print(f"products prices: {p_prices}")
+    print(f"warehouses shippings cost: {w_shipping_costs}")
+    print(f"warehouses free shipping threshold: {w_free_shipping}")
+    print()
+
+    p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
+    greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
+    allocations = greedy.allocate_items()
+    cost = greedy.calculate_costs(allocations)
+    print("Greedy solution")
+    print(allocations)
+    print(f"Total shipping cost: {cost}")
+    print()
+
+    result = solver.solve(facts)
+    cost = solver.calculate_cost(result, p_prices, w_shipping_costs, w_free_shipping)
+    print("ASP solution")
+    print(result)
+    print(f"Total shipping cost: {cost}")
 
 def main():
 
@@ -18,28 +45,39 @@ def main():
         description='''Cart Optimization. ''',
         epilog="""Hope you get the best fit!!."""
     )
-    parser.add_argument('--test', action='store_true', help='Run with random inputs', required=True)
-    parser.add_argument('-r', nargs=1, help='Max amount of runs', type=int, required=True)
+    parser.add_argument('--test', action='store_true', help='Run with random inputs', required='--one-time' not in sys.argv)
+    parser.add_argument('-r', nargs=1, help='Max amount of runs', type=int,  required='--test' in sys.argv)
+    parser.add_argument('--one-time', action='store_true', help='One sample comparison test')
     args=parser.parse_args()
+    if (args.one_time == True):
+        sample()
+        return
+
     max_runs=args.r[0]
 
-    ENCODING = read_file("./encoding.asp")
+    solver = Solver("./encoding.asp")
     generator = Generator()
     run_times = []
+    total_asp_cost = 0
+    total_greedy_cost = 0
     for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
         t_products = random.randint(1, max_products)
-        facts = generator.generate_random_input(t_warehouses, t_products)
-    
+        facts, p_prices, p_requests, w_shipping_costs, w_free_shipping, s_matrix = generator.generate_random_input(t_warehouses, t_products)
+        p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
+        greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
         try:
-            control = Control(logger=logger)
             start_time = time.time()
-            control.add(f"{facts}\n{ENCODING}")
-            control.ground([("base", [])], context=Context())
-            model = Model.of_control(control)
-            _ = model.as_facts.split('\n')
+            asp_result = solver.solve(facts)
             execution_time = round(time.time() - start_time, 2)
             run_times.append(execution_time)
+
+            asp_cost = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
+            total_asp_cost += asp_cost
+
+            greedy_result = greedy.allocate_items()
+            greedy_cost = greedy.calculate_costs(greedy_result)
+            total_greedy_cost += greedy_cost
 
         except Exception as e:
             pass
@@ -47,6 +85,8 @@ def main():
     if len(run_times) > 0:
         print(f"Solutions found: {len(run_times)}")
         print(f"Mean execution time: {mean(run_times)}")
+        print(f"Total ASP cost: {total_asp_cost}")
+        print(f"Total Greedy cost: {total_greedy_cost}")
     else:
         print("No solutions found")
 
