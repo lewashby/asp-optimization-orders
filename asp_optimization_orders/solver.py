@@ -14,7 +14,7 @@ class Solver:
     
 
     def solve(self, facts):
-        control = Control(logger=logger)
+        control = Control(["--opt-strategy=usc,k,0,5" ,"--opt-usc-shrink=rgs"], logger=logger)
         control.add(f"{facts}\n{self.__encoding}")
         control.ground([("base", [])], context=Context())
         model = Model.of_control(control)
@@ -31,7 +31,7 @@ class Solver:
             if (len(warehouse_allocations) > 0):
                 count += 1
                 spent = reduce(lambda sum, x: sum + x['quantity']*p_prices[x['product']-1], warehouse_allocations, 0)
-                if spent > w_threshold[i]:
+                if spent >= w_threshold[i]:
                     cost = 0
                 total+=cost
         return total, count
