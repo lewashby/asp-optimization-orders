@@ -7,6 +7,7 @@ from tqdm import tqdm
 from greedy import Greedy
 from solver import Solver
 import sys
+import random
 
 max_warehouses = 20
 max_products = 20
@@ -14,8 +15,8 @@ max_products = 20
 def sample():
     solver = Solver("./encoding.asp")
     generator = Generator()
-    t_warehouses = 3
-    t_products = 3
+    t_warehouses = 4
+    t_products = 4
     facts, p_prices, p_requests, w_shipping_costs, w_free_shipping, s_matrix = generator.generate_random_input(t_warehouses, t_products)
 
     print(f"products requirements: {p_requests}")
@@ -50,7 +51,10 @@ def main():
     parser.add_argument('--test', action='store_true', help='Run with random inputs', required='--one-time' not in sys.argv)
     parser.add_argument('-r', nargs=1, help='Max amount of runs', type=int,  required='--test' in sys.argv)
     parser.add_argument('--one-time', action='store_true', help='One sample comparison test')
+    parser.add_argument('-s', nargs=1, type=int, help='Seed for random generation')
     args=parser.parse_args()
+    if (args.s):
+        random.seed(args.s[0])
     if (args.one_time == True):
         sample()
         return
@@ -65,6 +69,7 @@ def main():
     total_asp_count = 0
     total_greedy_cost = 0
     total_greedy_count = 0
+    
     for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
         t_products = random.randint(1, max_products)
