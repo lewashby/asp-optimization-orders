@@ -11,10 +11,13 @@
    warehouse_free_shipping(W,T),
    select(_,W,Q), Q > 0,
    #sum{Q' * Price,P : select(P,W,Q'), product_price(P,Price)} < T.
-   [C@2, W]
+   [C@3, W]
 
 % minimize warehouses
-:~ warehouse(W), select(P,W,Q), Q > 0. [1@1, W]
+:~ warehouse(W), select(P,W,Q), Q > 0. [1@2, W]
+
+% minimize product-warehouse pairs involved
+:~ select(P,W,Q), Q > 0. [1@1, P,W]
 
 #show.
 #show select/3.
