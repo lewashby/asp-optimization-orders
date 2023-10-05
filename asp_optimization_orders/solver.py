@@ -34,4 +34,5 @@ class Solver:
                 if spent >= w_threshold[i]:
                     cost = 0
                 total+=cost
-        return total, count
+        allocations_count = len(result)
+        return total, count, allocations_count

@@ -77,9 +77,10 @@ class Greedy:
             cost = self.__w_shipping_costs[index]
             products = allocations[w]
             spent = reduce(lambda result, y: result + y[1]*self.__products_prices[y[0]-1], products, 0)
-            if spent > self.__w_shipping_threshold[index]:
+            if spent >= self.__w_shipping_threshold[index]:
                 cost = 0
             total+=cost
-        return total, len(allocations.keys())
+        allocations_count = reduce(lambda result, y: result + len(allocations[y]), allocations.keys(), 0)
+        return total, len(allocations.keys()), allocations_count
 
 
