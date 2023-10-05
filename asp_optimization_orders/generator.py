@@ -39,7 +39,7 @@ class Generator:
         for p in range(1, t_products+1):
             facts.append("product({}).".format(p))
             price = random.randint(1, max_price)
-            request = random.randint(0, max_request_allowed)
+            request = random.randint(0 if t_products > 1 else 1, max_request_allowed)
             self.__product_prices.append(price)
             facts.append("product_price({}, {}).".format(p, price))
             facts.append("product_request({}, {}).".format(p, request))
