@@ -6,14 +6,41 @@ from statistics import mean
 from tqdm import tqdm
 from greedy import Greedy
 from solver import Solver
+from miniznc import MinizincSolver
 import sys
 import random
+import csv
+import enum
 
 max_warehouses = 20
 max_products = 20
 
+def sample1():
+    model = MinizincSolver("./encodings/marketplace-1.mzn")
+    generator = Generator()
+    t_warehouses = 3
+    t_products = 3
+    _, p_prices, p_requests, w_shipping_costs, w_free_shipping, s_matrix = generator.generate_random_input(t_warehouses, t_products)
+
+    ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
+    ps = enum.Enum("products", [f"p{i+1}" for i in range(t_products)])
+    
+    parameters: dict = {}
+    parameters["products"] = ps
+    parameters["warehouses"] = ws
+    parameters["product_in_warehouse"] = s_matrix
+    parameters["product_request"] = p_requests
+    parameters["product_price"] = p_prices
+    parameters["shipping_free_threshold"] = w_free_shipping
+    parameters["shipping_fee"] = w_shipping_costs
+
+    result = model.solve(parameters)
+    print(type(result))
+    print(result)
+
+
 def sample():
-    solver = Solver("./encoding.asp")
+    solver = Solver("./encodings/encoding2.asp")
     generator = Generator()
     t_warehouses = 4
     t_products = 4
@@ -28,19 +55,21 @@ def sample():
     p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
     greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
     allocations = greedy.allocate_items()
-    cost, count = greedy.calculate_costs(allocations)
+    cost, count, allocations_count = greedy.calculate_costs(allocations)
     print("Greedy solution")
     print(allocations)
     print(f"Shippings created: {count}")
     print(f"Total shipping cost: {cost}")
+    print(f"Total allocations created: {allocations_count}")
     print()
 
     result = solver.solve(facts)
-    cost, count = solver.calculate_cost(result, p_prices, w_shipping_costs, w_free_shipping)
+    cost, count, allocations_count = solver.calculate_cost(result, p_prices, w_shipping_costs, w_free_shipping)
     print("ASP solution")
     print(result)
     print(f"Shippings created: {count}")
     print(f"Total shipping cost: {cost}")
+    print(f"Total allocations created: {allocations_count}")
 
 def main():
 
@@ -56,19 +85,41 @@ def main():
     if (args.s):
         random.seed(args.s[0])
     if (args.one_time == True):
-        sample()
+        sample1()
         return
 
     max_runs=args.r[0]
 
-    solver = Solver("./encoding.asp")
+    solver = Solver("./encodings/encoding.asp")
+    solver1 = Solver("./encodings/encoding1.asp")
+    solver2 = Solver("./encodings/encoding2.asp")
     generator = Generator()
-    asp_run_times = []
-    greedy_run_times = []
     total_asp_cost = 0
     total_asp_count = 0
     total_greedy_cost = 0
     total_greedy_count = 0
+    
+    asp_array_costs = []
+    greedy_array_costs = []
+
+    greedy_array_count_warehouses = []
+    asp_array_count_warehouses = []
+    asp_array_count_warehouses1 = []
+    asp_array_allocations_count1 = []
+    asp_array_allocations_count2 = []
+
+    asp_array_allocations_count = []
+    greedy_array_allocations_count = []
+
+    greedy_run_times = []
+    asp_run_times = []
+    asp_run_times1 = []
+    asp_run_times2 = []
+
+    greedy_run_times_failed = []
+    asp_run_times_failed = []
+    asp_run_times_failed1 = []
+    asp_run_times_failed2 = []
     
     for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
@@ -76,37 +127,122 @@ def main():
         facts, p_prices, p_requests, w_shipping_costs, w_free_shipping, s_matrix = generator.generate_random_input(t_warehouses, t_products)
         p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
         greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
+        
+        try:
+            start_time_greedy = time.time()
+            greedy_result = greedy.allocate_items()
+            greedy_execution_time = round(time.time() - start_time_greedy, 2)
+            greedy_run_times.append(greedy_execution_time)
+
+            greedy_cost, greedy_count, greedy_allocations_count = greedy.calculate_costs(greedy_result)
+
+        except Exception:
+            greedy_execution_time = round(time.time() - start_time_asp2, 2)
+            greedy_run_times_failed.append(greedy_execution_time)
+        
         try:
             start_time_asp = time.time()
             asp_result = solver.solve(facts)
-            execution_time = round(time.time() - start_time_asp, 2)
-            asp_run_times.append(execution_time)
+            asp_execution_time = round(time.time() - start_time_asp, 2)
+            asp_run_times.append(asp_execution_time)
 
-            asp_cost, asp_count = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
-            total_asp_cost += asp_cost
-            total_asp_count += asp_count
+            asp_cost, asp_count, asp_allocations_count = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
 
-            start_time_greedy = time.time()
-            greedy_result = greedy.allocate_items()
-            execution_time = round(time.time() - start_time_greedy, 2)
-            greedy_run_times.append(execution_time)
-            greedy_cost, greedy_count = greedy.calculate_costs(greedy_result)
-            total_greedy_cost += greedy_cost
-            total_greedy_count += greedy_count
+        except Exception:
+            asp_execution_time = round(time.time() - start_time_asp2, 2)
+            asp_run_times_failed.append(asp_execution_time)
 
-        except Exception as e:
-            pass
+        try:
+            start_time_asp1 = time.time()
+            asp_result1 = solver1.solve(facts)
+            asp_execution_time1 = round(time.time() - start_time_asp1, 2)
+            asp_run_times1.append(asp_execution_time1)
+
+            _, asp_count1, asp_allocations_count1 = solver1.calculate_cost(asp_result1, p_prices, w_shipping_costs, w_free_shipping)
+            asp_array_count_warehouses1.append(asp_count1)
+            asp_array_allocations_count1.append(asp_allocations_count1)
+
+        except Exception:
+            asp_execution_time1 = round(time.time() - start_time_asp2, 2)
+            asp_run_times_failed1.append(asp_execution_time1)
+
+        try:
+            start_time_asp2 = time.time()
+            asp_result2 = solver2.solve(facts)
+            asp_execution_time2 = round(time.time() - start_time_asp2, 2)
+            asp_run_times2.append(asp_execution_time2)
+
+            _, _, asp_allocations_count2 = solver2.calculate_cost(asp_result2, p_prices, w_shipping_costs, w_free_shipping)
+            asp_array_allocations_count2.append(asp_allocations_count2)
+
+        except Exception:
+            asp_execution_time2 = round(time.time() - start_time_asp2, 2)
+            asp_run_times_failed2.append(asp_execution_time2)
+
+        asp_array_costs.append(asp_cost)
+        greedy_array_costs.append(greedy_cost)
+        asp_array_count_warehouses.append(asp_count)
+        greedy_array_count_warehouses.append(greedy_count)
+        asp_array_allocations_count.append(asp_allocations_count)
+        greedy_array_allocations_count.append(greedy_allocations_count)
+
+        total_asp_cost += asp_cost
+        total_asp_count += asp_count1
+
+        total_greedy_cost += greedy_cost
+        total_greedy_count += greedy_count        
+
 
     if len(asp_run_times) > 0:
         print(f"Solutions found: {len(asp_run_times)}")
         print(f"Mean ASP execution time: {round(mean(asp_run_times),2)}")
+        print(f"Mean ASP1 execution time: {round(mean(asp_run_times1),2)}")
+        print(f"Mean ASP2 execution time: {round(mean(asp_run_times2),2)}")
         print(f"Total ASP Shippings created: {total_asp_count}")
         print(f"Total ASP cost: {total_asp_cost}")
+        print(f"Total ASP allocations: {sum(asp_array_allocations_count)}")
         print(f"Mean Greedy execution time: {round(mean(greedy_run_times),2)}")
         print(f"Total Greedy Shippings created: {total_greedy_count}")
         print(f"Total Greedy cost: {total_greedy_cost}")
+        print(f"Total Greedy allocations: {sum(greedy_array_allocations_count)}")
+
+        ########### cost ############
+        with open('./statistics/stats-cost@3.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["greedy asp"])
+            for x, y in zip(greedy_array_costs, asp_array_costs):
+                writer.writerow([f"{x} {y}"])
+
+        
+        ######## performance ###########
+        with open('./statistics/stats-performance@3@2@1.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["greedy asp asp1 asp2"])
+            gr = greedy_run_times + greedy_run_times_failed
+            asp = asp_run_times + asp_run_times_failed
+            asp1 = asp_run_times1 + asp_run_times_failed1
+            asp2 = asp_run_times2 + asp_run_times_failed2
+            for x, y, z, t in zip(gr, asp, asp1, asp2):
+                writer.writerow([f"{x} {y} {z} {t}"])
+
+        ######## shippings ###########
+        with open('./statistics/stats-shippings@3@2.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["greedy asp"])
+            for x, y in zip(greedy_array_count_warehouses, asp_array_count_warehouses1):
+                writer.writerow([f"{x} {y}"])
+
+        ######## splits ###########
+        with open('./statistics/stats-splits@3@2@1.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["greedy asp"])
+            for x, y in zip(greedy_array_allocations_count, asp_array_allocations_count2):
+                writer.writerow([f"{x} {y}"])
+
+
     else:
         print("No solutions found")
+
 
 if __name__ == '__main__':
     main()
