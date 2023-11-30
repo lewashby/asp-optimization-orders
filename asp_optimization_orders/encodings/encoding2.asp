@@ -16,7 +16,7 @@
 % minimize warehouses
 :~ warehouse(W), select(P,W,Q), Q > 0. [1@2, W]
 
-% minimize product-warehouse pairs involved
+% % minimize product-warehouse pairs involved
 :~ select(P,W,Q), Q > 0. [1@1, P,W]
 
 #show.
