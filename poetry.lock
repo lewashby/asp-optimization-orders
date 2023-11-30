@@ -402,6 +402,20 @@ files = [
 ]
 
 [[package]]
+name = "minizinc"
+version = "0.9.0"
+description = "Access MiniZinc directly from Python"
+optional = false
+python-versions = ">=3.7,<4.0"
+files = [
+    {file = "minizinc-0.9.0-py3-none-any.whl", hash = "sha256:cf50f0de07a93eca141d4a984dd623c0794898558ca9d22771bdf67817ae86fd"},
+    {file = "minizinc-0.9.0.tar.gz", hash = "sha256:5a85d4183bc3451ed48a1f8b7589755e13f557e8701cca32ab3f33c03c9f5c5b"},
+]
+
+[package.extras]
+dzn = ["lark-parser (>=0.12.0,<0.13.0)"]
+
+[[package]]
 name = "pillow"
 version = "9.5.0"
 description = "Python Imaging Library (Fork)"
@@ -659,4 +673,4 @@ six = "*"
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.10"
-content-hash = "6f77bad9165d4fa4587f03f89e1e86f8fd643be280f0fca80e966a7a0eea3b41"
+content-hash = "9f4d808c201390415edf339d6342d7fda3153186f23561abb966acf86c3010a4"
