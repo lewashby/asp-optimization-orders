@@ -18,13 +18,7 @@ class MinizincSolver:
         solution = result.solution
         res = []
         for i, p in enumerate(solution.select):
-            for j, w in enumerate(p):
-                if(w != 0):
-                    res.append({
-                        "warehouse": j+1, 
-                        "product": i+1, 
-                        "quantity": w
-                    })
+            res += [{"warehouse": j+1, "product": i+1, "quantity": w } for j, w in enumerate(p) if w != 0]
         return {"objective": result.objective, "solution": res}
     
     @staticmethod
