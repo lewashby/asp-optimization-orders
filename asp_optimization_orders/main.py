@@ -209,12 +209,9 @@ def main():
             parameters["shipping_fee"] = w_shipping_costs
 
             start_time_mnznc = time.time()
-            result = mnznc.solve(parameters)
+            _ = mnznc.solve(parameters)
             mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
-            if(result.solution is None):
-                mnznc_run_times_failed.append(mnznc_execution_time)
-            else:
-                mnznc_run_times.append(mnznc_execution_time)
+            mnznc_run_times.append(mnznc_execution_time)
             
         except Exception:
             mnznc_execution_time = round(time.time() - start_time_asp2, 2)
@@ -248,6 +245,8 @@ def main():
         print(f"Total Greedy cost: {total_greedy_cost}")
         print(f"Total Greedy allocations: {sum(greedy_array_allocations_count)}")
         print()
+        print(mnznc_run_times)
+        print(mnznc_run_times_failed)
         print(f"Mean Minizinc execution time: {round(mean(mnznc_run_times),2)}")
 
         ########### cost ############
