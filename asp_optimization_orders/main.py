@@ -11,20 +11,28 @@ import sys
 import random
 import csv
 import enum
+import warnings
+
+warnings.filterwarnings("error")
 
 max_warehouses = 20
 max_products = 20
 
-def sample1():
+def sample_mnznc():
     model = MinizincSolver("./encodings/marketplace-1.mzn")
     generator = Generator()
     t_warehouses = 3
-    t_products = 3
+    t_products = 2
     _, p_prices, p_requests, w_shipping_costs, w_free_shipping, s_matrix = generator.generate_random_input(t_warehouses, t_products)
 
+    print(f"products requirements: {p_requests}")
+    print(f"products prices: {p_prices}")
+    print(f"warehouses shippings cost: {w_shipping_costs}")
+    print(f"warehouses free shipping threshold: {w_free_shipping}")
+    print()
+
     ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
-    ps = enum.Enum("products", [f"p{i+1}" for i in range(t_products)])
-    
+    ps = enum.Enum("products", [f"p{i+1}" for i in range(t_products)])    
     parameters: dict = {}
     parameters["products"] = ps
     parameters["warehouses"] = ws
@@ -35,8 +43,14 @@ def sample1():
     parameters["shipping_fee"] = w_shipping_costs
 
     result = model.solve(parameters)
-    print(type(result))
-    print(result)
+    result = model.parse_solution(result)
+    mnznc_cost, mnznc_count, mnznc_allocations_count = model.calculate_cost(result['solution'], p_prices, w_shipping_costs, w_free_shipping)
+    
+    print("Minizinc solution")
+    print(result['solution'])
+    print(f"Shippings created: {mnznc_count}")
+    print(f"Total shipping cost: {mnznc_cost}")
+    print(f"Total allocations created: {mnznc_allocations_count}")
 
 
 def sample():
@@ -85,7 +99,7 @@ def main():
     if (args.s):
         random.seed(args.s[0])
     if (args.one_time == True):
-        sample1()
+        sample_mnznc()
         return
 
     max_runs=args.r[0]
@@ -115,11 +129,13 @@ def main():
     asp_run_times = []
     asp_run_times1 = []
     asp_run_times2 = []
+    mnznc_run_times = []
 
     greedy_run_times_failed = []
     asp_run_times_failed = []
     asp_run_times_failed1 = []
     asp_run_times_failed2 = []
+    mnznc_run_times_failed = []
     
     for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
@@ -179,6 +195,31 @@ def main():
             asp_execution_time2 = round(time.time() - start_time_asp2, 2)
             asp_run_times_failed2.append(asp_execution_time2)
 
+        try:
+            mnznc = MinizincSolver("./encodings/marketplace-1.mzn")
+            ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
+            ps = enum.Enum("products", [f"p{i+1}" for i in range(t_products)])            
+            parameters: dict = {}
+            parameters["products"] = ps
+            parameters["warehouses"] = ws
+            parameters["product_in_warehouse"] = s_matrix
+            parameters["product_request"] = p_requests
+            parameters["product_price"] = p_prices
+            parameters["shipping_free_threshold"] = w_free_shipping
+            parameters["shipping_fee"] = w_shipping_costs
+
+            start_time_mnznc = time.time()
+            result = mnznc.solve(parameters)
+            mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
+            if(result.solution is None):
+                mnznc_run_times_failed.append(mnznc_execution_time)
+            else:
+                mnznc_run_times.append(mnznc_execution_time)
+            
+        except Exception:
+            mnznc_execution_time = round(time.time() - start_time_asp2, 2)
+            mnznc_run_times_failed.append(mnznc_execution_time)
+
         asp_array_costs.append(asp_cost)
         greedy_array_costs.append(greedy_cost)
         asp_array_count_warehouses.append(asp_count)
@@ -201,10 +242,13 @@ def main():
         print(f"Total ASP Shippings created: {total_asp_count}")
         print(f"Total ASP cost: {total_asp_cost}")
         print(f"Total ASP allocations: {sum(asp_array_allocations_count)}")
+        print()
         print(f"Mean Greedy execution time: {round(mean(greedy_run_times),2)}")
         print(f"Total Greedy Shippings created: {total_greedy_count}")
         print(f"Total Greedy cost: {total_greedy_cost}")
         print(f"Total Greedy allocations: {sum(greedy_array_allocations_count)}")
+        print()
+        print(f"Mean Minizinc execution time: {round(mean(mnznc_run_times),2)}")
 
         ########### cost ############
         with open('./statistics/stats-cost@3.csv', 'w', newline='') as file:
@@ -217,13 +261,14 @@ def main():
         ######## performance ###########
         with open('./statistics/stats-performance@3@2@1.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["greedy asp asp1 asp2"])
+            writer.writerow(["greedy asp asp1 asp2 mnznc"])
             gr = greedy_run_times + greedy_run_times_failed
             asp = asp_run_times + asp_run_times_failed
             asp1 = asp_run_times1 + asp_run_times_failed1
             asp2 = asp_run_times2 + asp_run_times_failed2
-            for x, y, z, t in zip(gr, asp, asp1, asp2):
-                writer.writerow([f"{x} {y} {z} {t}"])
+            mnznc_ = mnznc_run_times + mnznc_run_times_failed
+            for x, y, z, t, w in zip(gr, asp, asp1, asp2, mnznc_):
+                writer.writerow([f"{x} {y} {z} {t} {w}"])
 
         ######## shippings ###########
         with open('./statistics/stats-shippings@3@2.csv', 'w', newline='') as file:

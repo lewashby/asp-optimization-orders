@@ -1,8 +1,7 @@
 from clingo import Control
 from dumbo_asp.primitives import Model
 from context import Context
-from utils import read_file, parse_response
-from functools import reduce
+from utils import read_file, parse_response, calculate_cost
 
 def logger(code, msg):
     return
@@ -23,16 +22,4 @@ class Solver:
     
     @staticmethod
     def calculate_cost(result: list, p_prices: list, w_shipping_cost: list, w_threshold: list):
-        total = 0
-        count = 0
-        for i, cost in enumerate(w_shipping_cost):
-            index = i+1
-            warehouse_allocations = list(filter(lambda x: x['warehouse'] == index, result))
-            if (len(warehouse_allocations) > 0):
-                count += 1
-                spent = reduce(lambda sum, x: sum + x['quantity']*p_prices[x['product']-1], warehouse_allocations, 0)
-                if spent >= w_threshold[i]:
-                    cost = 0
-                total+=cost
-        allocations_count = len(result)
-        return total, count, allocations_count
+        return calculate_cost(result, p_prices, w_shipping_cost, w_threshold)
