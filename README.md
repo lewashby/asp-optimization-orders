@@ -17,6 +17,6 @@
 ## Multiple Tests
 
 ```cmd
-    poetry run python main.py --test -r 100
+    poetry run python main.py --test -r 100 -s 4
 ```
 
