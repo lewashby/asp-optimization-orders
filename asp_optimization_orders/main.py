@@ -99,7 +99,7 @@ def main():
     if (args.s):
         random.seed(args.s[0])
     if (args.one_time == True):
-        sample_mnznc()
+        sample()
         return
 
     max_runs=args.r[0]
