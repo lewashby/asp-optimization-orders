@@ -19,7 +19,7 @@ max_warehouses = 20
 max_products = 20
 
 def sample_mnznc():
-    model = MinizincSolver("./encodings/marketplace-1.mzn")
+    model = MinizincSolver("./encodings/marketplace-1.mzn", solver="com.google.ortools.sat")
     generator = Generator()
     t_warehouses = 3
     t_products = 2
@@ -41,16 +41,22 @@ def sample_mnznc():
     parameters["product_price"] = p_prices
     parameters["shipping_free_threshold"] = w_free_shipping
     parameters["shipping_fee"] = w_shipping_costs
+    parameters["shipment_cost"] = 0
+    parameters["used_warehouses"] = 1
 
     result = model.solve(parameters)
     result = model.parse_solution(result)
-    mnznc_cost, mnznc_count, mnznc_allocations_count = model.calculate_cost(result['solution'], p_prices, w_shipping_costs, w_free_shipping)
-    
-    print("Minizinc solution")
-    print(result['solution'])
-    print(f"Shippings created: {mnznc_count}")
-    print(f"Total shipping cost: {mnznc_cost}")
-    print(f"Total allocations created: {mnznc_allocations_count}")
+
+    if (result is None):
+        print("No solution found")
+    else:
+        mnznc_cost, mnznc_count, mnznc_allocations_count = model.calculate_cost(result['solution'], p_prices, w_shipping_costs, w_free_shipping)
+        
+        print("Minizinc solution")
+        print(result['solution'])
+        print(f"Shippings created: {mnznc_count}")
+        print(f"Total shipping cost: {mnznc_cost}")
+        print(f"Total allocations created: {mnznc_allocations_count}")
 
 
 def sample():
@@ -153,7 +159,7 @@ def main():
             greedy_cost, greedy_count, greedy_allocations_count = greedy.calculate_costs(greedy_result)
 
         except Exception:
-            greedy_execution_time = round(time.time() - start_time_asp2, 2)
+            greedy_execution_time = round(time.time() - start_time_greedy, 2)
             greedy_run_times_failed.append(greedy_execution_time)
         
         try:
@@ -165,7 +171,7 @@ def main():
             asp_cost, asp_count, asp_allocations_count = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
 
         except Exception:
-            asp_execution_time = round(time.time() - start_time_asp2, 2)
+            asp_execution_time = round(time.time() - start_time_asp, 2)
             asp_run_times_failed.append(asp_execution_time)
 
         try:
@@ -179,7 +185,7 @@ def main():
             asp_array_allocations_count1.append(asp_allocations_count1)
 
         except Exception:
-            asp_execution_time1 = round(time.time() - start_time_asp2, 2)
+            asp_execution_time1 = round(time.time() - start_time_asp1, 2)
             asp_run_times_failed1.append(asp_execution_time1)
 
         try:
@@ -196,7 +202,7 @@ def main():
             asp_run_times_failed2.append(asp_execution_time2)
 
         try:
-            mnznc = MinizincSolver("./encodings/marketplace-1.mzn")
+            mnznc = MinizincSolver("./encodings/marketplace-1.mzn", solver="com.google.ortools.sat")
             ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
             ps = enum.Enum("products", [f"p{i+1}" for i in range(t_products)])            
             parameters: dict = {}
@@ -209,12 +215,15 @@ def main():
             parameters["shipping_fee"] = w_shipping_costs
 
             start_time_mnznc = time.time()
-            _ = mnznc.solve(parameters)
+            result = mnznc.solve(parameters)
             mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
-            mnznc_run_times.append(mnznc_execution_time)
+            if(result.solution is not None):
+                mnznc_run_times.append(mnznc_execution_time)
+            else:
+                mnznc_run_times_failed.append(mnznc_execution_time)
             
         except Exception:
-            mnznc_execution_time = round(time.time() - start_time_asp2, 2)
+            mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
             mnznc_run_times_failed.append(mnznc_execution_time)
 
         asp_array_costs.append(asp_cost)
@@ -230,9 +239,11 @@ def main():
         total_greedy_cost += greedy_cost
         total_greedy_count += greedy_count        
 
-
     if len(asp_run_times) > 0:
         print(f"Solutions found: {len(asp_run_times)}")
+        print(f"Success: Greedy-{len(greedy_run_times)} ASP-{len(asp_run_times)} ASP1-{len(asp_run_times1)} ASP2-{len(asp_run_times2)} Minizinc-{len(mnznc_run_times)}")
+        print(f"Failed: Greedy-{len(greedy_run_times_failed)} ASP-{len(asp_run_times_failed)} ASP1-{len(asp_run_times_failed1)} ASP2-{len(asp_run_times_failed2)} Minizinc-{len(mnznc_run_times_failed)}")
+        print()
         print(f"Mean ASP execution time: {round(mean(asp_run_times),2)}")
         print(f"Mean ASP1 execution time: {round(mean(asp_run_times1),2)}")
         print(f"Mean ASP2 execution time: {round(mean(asp_run_times2),2)}")
@@ -245,8 +256,6 @@ def main():
         print(f"Total Greedy cost: {total_greedy_cost}")
         print(f"Total Greedy allocations: {sum(greedy_array_allocations_count)}")
         print()
-        print(mnznc_run_times)
-        print(mnznc_run_times_failed)
         print(f"Mean Minizinc execution time: {round(mean(mnznc_run_times),2)}")
 
         ########### cost ############
@@ -258,7 +267,7 @@ def main():
 
         
         ######## performance ###########
-        with open('./statistics/stats-performance@3@2@1.csv', 'w', newline='') as file:
+        with open('./statistics/stats-performance@3@2@1-mnznc.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["greedy asp asp1 asp2 mnznc"])
             gr = greedy_run_times + greedy_run_times_failed
