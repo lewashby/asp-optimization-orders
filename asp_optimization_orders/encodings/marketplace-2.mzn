@@ -36,7 +36,7 @@ constraint sum (w in warehouses) (
 
 
 
-% minimize warehuse
+% minimize warehouse
 solve minimize sum (w in warehouses) (
     if sum (p in products) (select[p, w]) > 0 then 1 else 0 endif
 );

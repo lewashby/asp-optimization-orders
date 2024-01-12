@@ -33,12 +33,4 @@ solve minimize sum (w in warehouses) (
   else 0 endif
 );
 
-
-
-% minimize warehuse
-
-
-% other
-% solve minimize sum (w in warehouses) (sum (p in products) (shipping_fee[w]*select[p, w]));
-
 % solve satisfy;
