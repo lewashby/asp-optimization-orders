@@ -132,20 +132,29 @@ def main():
     asp_run_times1 = []
     asp_run_times2 = []
     mnznc_run_times = []
+    mnznc_run_times1 = []
+    mnznc_run_times2 = []
 
     greedy_run_times_failed = []
     asp_run_times_failed = []
     asp_run_times_failed1 = []
     asp_run_times_failed2 = []
     mnznc_run_times_failed = []
+    mnznc_run_times_failed1 = []
+    mnznc_run_times_failed2 = []
+
+    parameters: dict = {}
     
     for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
         t_products = random.randint(1, max_products)
+        ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
+        ps = enum.Enum("products", [f"p{i+1}" for i in range(t_products)])
         facts, p_prices, p_requests, w_shipping_costs, w_free_shipping, s_matrix = generator.generate_random_input(t_warehouses, t_products)
         p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
         greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
         
+        # Greedy
         try:
             start_time_greedy = time.time()
             greedy_result = greedy.allocate_items()
@@ -161,6 +170,7 @@ def main():
             greedy_execution_time = round(time.time() - start_time_greedy, 2)
             greedy_run_times_failed.append(greedy_execution_time)
         
+        # ASP
         try:
             start_time_asp = time.time()
             asp_result = solver.solve(facts)
@@ -176,6 +186,7 @@ def main():
             asp_execution_time = round(time.time() - start_time_asp, 2)
             asp_run_times_failed.append(asp_execution_time)
 
+        # ASP1
         try:
             start_time_asp1 = time.time()
             asp_result1 = solver1.solve(facts)
@@ -190,6 +201,7 @@ def main():
             asp_execution_time1 = round(time.time() - start_time_asp1, 2)
             asp_run_times_failed1.append(asp_execution_time1)
 
+        #ASP2
         try:
             start_time_asp2 = time.time()
             asp_result2 = solver2.solve(facts)
@@ -202,12 +214,9 @@ def main():
         except Exception:
             asp_execution_time2 = round(time.time() - start_time_asp2, 2)
             asp_run_times_failed2.append(asp_execution_time2)
-
+        
+        # Minizinc
         try:
-            mnznc = MinizincSolver("./encodings/marketplace-1.mzn", solver="com.google.ortools.sat")
-            ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
-            ps = enum.Enum("products", [f"p{i+1}" for i in range(t_products)])            
-            parameters: dict = {}
             parameters["products"] = ps
             parameters["warehouses"] = ws
             parameters["product_in_warehouse"] = s_matrix
@@ -215,9 +224,7 @@ def main():
             parameters["product_price"] = p_prices
             parameters["shipping_free_threshold"] = w_free_shipping
             parameters["shipping_fee"] = w_shipping_costs
-            parameters["shipment_cost"] = asp_cost2
-            parameters["used_warehouses"] = asp_count2
-
+            mnznc = MinizincSolver("./encodings/marketplace-1.mzn", solver="com.google.ortools.sat")
             start_time_mnznc = time.time()
             result = mnznc.solve(parameters)
             mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
@@ -230,10 +237,42 @@ def main():
             mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
             mnznc_run_times_failed.append(mnznc_execution_time)
 
+        # Minizinc1
+        try:
+            parameters["shipment_cost"] = asp_cost2
+            mnznc = MinizincSolver("./encodings/marketplace-2.mzn", solver="com.google.ortools.sat")
+            start_time_mnznc = time.time()
+            result = mnznc.solve(parameters)
+            mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
+            if(result.solution is not None):
+                mnznc_run_times1.append(mnznc_execution_time + mnznc_run_times[-1])
+            else:
+                mnznc_run_times_failed1.append(mnznc_run_times_failed[-1])
+
+        except Exception:
+            # mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
+            mnznc_run_times_failed1.append(mnznc_run_times_failed[-1])
+
+        # Minizinc2
+        try:
+            parameters["used_warehouses"] = asp_count2
+            mnznc = MinizincSolver("./encodings/marketplace-3.mzn", solver="com.google.ortools.sat")
+            start_time_mnznc = time.time()
+            result = mnznc.solve(parameters)
+            mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
+            if(result.solution is not None):
+                mnznc_run_times2.append(mnznc_execution_time + mnznc_run_times1[-1])
+            else:
+                mnznc_run_times_failed2.append(mnznc_run_times_failed[-1])
+
+        except Exception:
+            # mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
+            mnznc_run_times_failed2.append(mnznc_run_times_failed[-1])
+
     if len(asp_run_times) > 0:
         print(f"Solutions found: {len(asp_run_times)}")
-        print(f"Success: Greedy-{len(greedy_run_times)} ASP-{len(asp_run_times)} ASP1-{len(asp_run_times1)} ASP2-{len(asp_run_times2)} Minizinc-{len(mnznc_run_times)}")
-        print(f"Failed: Greedy-{len(greedy_run_times_failed)} ASP-{len(asp_run_times_failed)} ASP1-{len(asp_run_times_failed1)} ASP2-{len(asp_run_times_failed2)} Minizinc-{len(mnznc_run_times_failed)}")
+        print(f"Success: Greedy-{len(greedy_run_times)} ASP-{len(asp_run_times)} ASP1-{len(asp_run_times1)} ASP2-{len(asp_run_times2)} Minizinc-{len(mnznc_run_times)} Minizinc1-{len(mnznc_run_times1)} Minizinc2-{len(mnznc_run_times2)}")
+        print(f"Failed: Greedy-{len(greedy_run_times_failed)} ASP-{len(asp_run_times_failed)} ASP1-{len(asp_run_times_failed1)} ASP2-{len(asp_run_times_failed2)} Minizinc-{len(mnznc_run_times_failed)} Minizinc1-{len(mnznc_run_times_failed1)} Minizinc2-{len(mnznc_run_times_failed2)}")
         print()
         print(f"Mean ASP execution time: {round(mean(asp_run_times),2)}")
         print(f"Mean ASP1 execution time: {round(mean(asp_run_times1),2)}")
@@ -248,8 +287,10 @@ def main():
         print(f"Total Greedy allocations: {sum(greedy_array_allocations_count)}")
         print()
         print(f"Mean Minizinc execution time: {round(mean(mnznc_run_times),2)}")
+        print(f"Mean Minizinc1 execution time: {round(mean(mnznc_run_times1),2)}")
+        print(f"Mean Minizinc2 execution time: {round(mean(mnznc_run_times2),2)}")
 
-        ########### cost ############
+        ########## cost ############
         with open('./statistics/stats-cost@3.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["greedy asp"])
@@ -257,26 +298,28 @@ def main():
                 writer.writerow([f"{x} {y}"])
 
         
-        ######## performance ###########
+        ####### performance ###########
         with open('./statistics/stats-performance@3@2@1-mnznc.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["greedy asp asp1 asp2 mnznc"])
+            writer.writerow(["greedy asp asp1 asp2 mnznc mnznc1 mnznc2"])
             gr = greedy_run_times + greedy_run_times_failed
             asp = asp_run_times + asp_run_times_failed
             asp1 = asp_run_times1 + asp_run_times_failed1
             asp2 = asp_run_times2 + asp_run_times_failed2
             mnznc_ = mnznc_run_times + mnznc_run_times_failed
-            for x, y, z, t, w in zip(gr, asp, asp1, asp2, mnznc_):
-                writer.writerow([f"{x} {y} {z} {t} {w}"])
+            mnznc_1 = mnznc_run_times1 + mnznc_run_times_failed1
+            mnznc_2 = mnznc_run_times2 + mnznc_run_times_failed2
+            for x, y, z, t, w, m, n in zip(gr, asp, asp1, asp2, mnznc_, mnznc_1, mnznc_2):
+                writer.writerow([f"{x} {y} {z} {t} {w} {m} {n}"])
 
-        ######## shippings ###########
+        ####### shippings ###########
         with open('./statistics/stats-shippings@3@2.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["greedy asp"])
             for x, y in zip(greedy_array_count_warehouses, asp_array_count_warehouses1):
                 writer.writerow([f"{x} {y}"])
 
-        ######## splits ###########
+        ####### splits ###########
         with open('./statistics/stats-splits@3@2@1.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["greedy asp"])
