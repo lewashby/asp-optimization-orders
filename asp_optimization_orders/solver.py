@@ -12,8 +12,8 @@ class Solver:
         self.__encoding = read_file(encoding_path)
     
 
-    def solve(self, facts):
-        control = Control(["--opt-strategy=usc,k,0,5" ,"--opt-usc-shrink=rgs"], logger=logger)
+    def solve(self, facts, arguments=["--opt-strategy=usc,k,0,5" ,"--opt-usc-shrink=rgs"]):
+        control = Control(arguments, logger=logger)
         control.add(f"{facts}\n{self.__encoding}")
         control.ground([("base", [])], context=Context())
         model = Model.of_control(control)
