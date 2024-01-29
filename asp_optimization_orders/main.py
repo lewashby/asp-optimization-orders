@@ -146,8 +146,7 @@ def main():
 
     parameters: dict = {}
     
-    for counter in tqdm(range(max_runs), desc="Testing..."):
-    # for counter in range(max_runs):
+    for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
         t_products = random.randint(1, max_products)
         ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
