@@ -17,6 +17,7 @@ warnings.filterwarnings("error")
 
 max_warehouses = 20
 max_products = 20
+timeout = 3.0
 
 def sample_mnznc():
     model = MinizincSolver("./encodings/marketplace-1.mzn", solver="com.google.ortools.sat")
@@ -145,7 +146,8 @@ def main():
 
     parameters: dict = {}
     
-    for _ in tqdm(range(max_runs), desc="Testing..."):
+    for counter in tqdm(range(max_runs), desc="Testing..."):
+    # for counter in range(max_runs):
         t_warehouses = random.randint(1, max_warehouses)
         t_products = random.randint(1, max_products)
         ws = enum.Enum("warehouses", [f"w{i+1}" for i in range(t_warehouses)])
@@ -154,7 +156,8 @@ def main():
         p_requirements = [(i+1, r) for i, r in enumerate(p_requests)]
         greedy = Greedy(t_warehouses, p_requirements, p_prices, w_shipping_costs, w_free_shipping, s_matrix)
         
-        # Greedy
+        # # Greedy
+        greedy_result= []
         try:
             start_time_greedy = time.time()
             greedy_result = greedy.allocate_items()
@@ -171,49 +174,71 @@ def main():
             greedy_run_times_failed.append(greedy_execution_time)
         
         # ASP
+        asp_result = []
         try:
             start_time_asp = time.time()
-            asp_result = solver.solve(facts)
+            asp_result, interrupted, satisfiable = solver.solve(facts, timeout=timeout)
             asp_execution_time = round(time.time() - start_time_asp, 2)
-            asp_run_times.append(asp_execution_time)
+            if(interrupted and len(greedy_result) > 0):
+                asp_run_times.append(timeout)
+            elif(interrupted and len(greedy_result) == 0):
+                asp_run_times_failed.append(timeout)
+            elif(satisfiable):
+                asp_run_times.append(asp_execution_time)
+            else:
+                asp_run_times_failed.append(asp_execution_time)
 
             asp_cost, asp_count, asp_allocations_count = solver.calculate_cost(asp_result, p_prices, w_shipping_costs, w_free_shipping)
             asp_array_costs.append(asp_cost)
             asp_array_count_warehouses.append(asp_count)
             asp_array_allocations_count.append(asp_allocations_count)
 
-        except Exception:
-            asp_execution_time = round(time.time() - start_time_asp, 2)
-            asp_run_times_failed.append(asp_execution_time)
+        except Exception as e:
+            print(e)
 
         # ASP1
+        asp_result1 = []
         try:
             start_time_asp1 = time.time()
-            asp_result1 = solver1.solve(facts)
+            asp_result1, interrupted, satisfiable = solver1.solve(facts, timeout=timeout)
             asp_execution_time1 = round(time.time() - start_time_asp1, 2)
-            asp_run_times1.append(asp_execution_time1)
+            if(interrupted and len(greedy_result) > 0):
+                asp_run_times1.append(timeout)
+            elif(interrupted and len(greedy_result) == 0):
+                asp_run_times_failed1.append(timeout)
+            elif(satisfiable):
+                asp_run_times1.append(asp_execution_time1)
+            else:
+                asp_run_times_failed1.append(asp_execution_time1)
 
             _, asp_count1, asp_allocations_count1 = solver1.calculate_cost(asp_result1, p_prices, w_shipping_costs, w_free_shipping)
             asp_array_count_warehouses1.append(asp_count1)
             asp_array_allocations_count1.append(asp_allocations_count1)
 
         except Exception:
-            asp_execution_time1 = round(time.time() - start_time_asp1, 2)
-            asp_run_times_failed1.append(asp_execution_time1)
+            print(e)
 
         #ASP2
-        try:
+        asp_result2 = []
+        try:            
             start_time_asp2 = time.time()
-            asp_result2 = solver2.solve(facts)
+            asp_result2, interrupted, satisfiable = solver2.solve(facts, timeout=timeout)
             asp_execution_time2 = round(time.time() - start_time_asp2, 2)
-            asp_run_times2.append(asp_execution_time2)
+            if(interrupted and len(greedy_result) > 0):
+                asp_run_times2.append(timeout)
+            elif(interrupted and len(greedy_result) == 0):
+                asp_run_times_failed2.append(timeout)
+            elif(satisfiable):
+                asp_run_times2.append(asp_execution_time2)
+            else:
+                asp_run_times_failed2.append(asp_execution_time2)
 
-            asp_cost2, asp_count2, asp_allocations_count2 = solver2.calculate_cost(asp_result2, p_prices, w_shipping_costs, w_free_shipping)
+            _, _, asp_allocations_count2 = solver2.calculate_cost(asp_result2, p_prices, w_shipping_costs, w_free_shipping)
             asp_array_allocations_count2.append(asp_allocations_count2)
 
-        except Exception:
-            asp_execution_time2 = round(time.time() - start_time_asp2, 2)
-            asp_run_times_failed2.append(asp_execution_time2)
+        except Exception as e:
+            print(e)
+            
         
         # Minizinc
         try:
@@ -269,7 +294,7 @@ def main():
             # mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
             mnznc_run_times_failed2.append(mnznc_run_times_failed[-1])
 
-    if len(asp_run_times) > 0:
+    if len(greedy_run_times) > 0:
         print(f"Solutions found: {len(asp_run_times)}")
         print(f"Success: Greedy-{len(greedy_run_times)} ASP-{len(asp_run_times)} ASP1-{len(asp_run_times1)} ASP2-{len(asp_run_times2)} Minizinc-{len(mnznc_run_times)} Minizinc1-{len(mnznc_run_times1)} Minizinc2-{len(mnznc_run_times2)}")
         print(f"Failed: Greedy-{len(greedy_run_times_failed)} ASP-{len(asp_run_times_failed)} ASP1-{len(asp_run_times_failed1)} ASP2-{len(asp_run_times_failed2)} Minizinc-{len(mnznc_run_times_failed)} Minizinc1-{len(mnznc_run_times_failed1)} Minizinc2-{len(mnznc_run_times_failed2)}")
@@ -290,15 +315,8 @@ def main():
         print(f"Mean Minizinc1 execution time: {round(mean(mnznc_run_times1),2)}")
         print(f"Mean Minizinc2 execution time: {round(mean(mnznc_run_times2),2)}")
 
-        ########## cost ############
-        with open('./statistics/stats-cost@3.csv', 'w', newline='') as file:
-            writer = csv.writer(file)
-            writer.writerow(["greedy asp"])
-            for x, y in zip(greedy_array_costs, asp_array_costs):
-                writer.writerow([f"{x} {y}"])
-
         
-        ####### performance ###########
+        ######## performance ###########
         with open('./statistics/stats-performance@3@2@1-mnznc.csv', 'w', newline='') as file:
             writer = csv.writer(file)
             writer.writerow(["greedy asp asp1 asp2 mnznc mnznc1 mnznc2"])
@@ -311,20 +329,27 @@ def main():
             mnznc_2 = mnznc_run_times2 + mnznc_run_times_failed2
             for x, y, z, t, w, m, n in zip(gr, asp, asp1, asp2, mnznc_, mnznc_1, mnznc_2):
                 writer.writerow([f"{x} {y} {z} {t} {w} {m} {n}"])
+                
+        ########## cost ############
+        with open('./statistics/stats-cost@3.csv', 'w', newline='') as file:
+            writer = csv.writer(file)
+            writer.writerow(["greedy asp"])
+            for x, y in zip(greedy_array_costs, asp_array_costs):
+                writer.writerow([f"{x} {y}"])
 
-        ####### shippings ###########
+        # ####### shippings ###########
         with open('./statistics/stats-shippings@3@2.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["greedy asp"])
-            for x, y in zip(greedy_array_count_warehouses, asp_array_count_warehouses1):
-                writer.writerow([f"{x} {y}"])
+            writer.writerow(["greedy asp asp1"])
+            for x, y, z in zip(greedy_array_count_warehouses, asp_array_count_warehouses, asp_array_count_warehouses1):
+                writer.writerow([f"{x} {y} {z}"])
 
-        ####### splits ###########
+        # ####### splits ###########
         with open('./statistics/stats-splits@3@2@1.csv', 'w', newline='') as file:
             writer = csv.writer(file)
-            writer.writerow(["greedy asp"])
-            for x, y in zip(greedy_array_allocations_count, asp_array_allocations_count2):
-                writer.writerow([f"{x} {y}"])
+            writer.writerow(["greedy asp asp1 asp2"])
+            for x, y, z, t in zip(greedy_array_allocations_count, asp_array_allocations_count, asp_array_allocations_count1, asp_array_allocations_count2):
+                writer.writerow([f"{x} {y} {z} {t}"])
 
 
     else:
