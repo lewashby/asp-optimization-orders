@@ -84,7 +84,7 @@ def sample():
     print(f"Total allocations created: {allocations_count}")
     print()
 
-    result = solver.solve(facts)
+    result, _, _ = solver.solve(facts)
     cost, count, allocations_count = solver.calculate_cost(result, p_prices, w_shipping_costs, w_free_shipping)
     print("ASP solution")
     print(result)
@@ -145,6 +145,19 @@ def main():
     mnznc_run_times_failed2 = []
 
     parameters: dict = {}
+
+    created_warehouses = {
+        "success": [],
+        "failed": []
+    }
+    created_products = {
+        "success": [],
+        "failed": []
+    }
+    iteration_requests = {
+        "success": [],
+        "failed": []
+    }
     
     for _ in tqdm(range(max_runs), desc="Testing..."):
         t_warehouses = random.randint(1, max_warehouses)
@@ -168,9 +181,17 @@ def main():
             greedy_array_count_warehouses.append(greedy_count)
             greedy_array_allocations_count.append(greedy_allocations_count)
 
+            created_warehouses["success"].append(t_warehouses)
+            created_products["success"].append(t_products)
+            iteration_requests["success"].append(sum(x != 0 for x in p_requests))
+
         except Exception:
             greedy_execution_time = round(time.time() - start_time_greedy, 2)
             greedy_run_times_failed.append(greedy_execution_time)
+
+            created_warehouses["failed"].append(t_warehouses)
+            created_products["failed"].append(t_products)
+            iteration_requests["failed"].append(sum(x != 0 for x in p_requests))
         
         # ASP
         asp_result = []
@@ -263,7 +284,7 @@ def main():
 
         # Minizinc1
         try:
-            parameters["shipment_cost"] = asp_cost2
+            parameters["shipment_cost"] = asp_cost
             mnznc = MinizincSolver("./encodings/marketplace-2.mzn", solver="com.google.ortools.sat")
             start_time_mnznc = time.time()
             result = mnznc.solve(parameters)
@@ -275,11 +296,11 @@ def main():
 
         except Exception:
             # mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
-            mnznc_run_times_failed1.append(mnznc_run_times_failed[-1])
+            mnznc_run_times_failed1.append(mnznc_run_times_failed1[-1])
 
         # Minizinc2
         try:
-            parameters["used_warehouses"] = asp_count2
+            parameters["used_warehouses"] = asp_count
             mnznc = MinizincSolver("./encodings/marketplace-3.mzn", solver="com.google.ortools.sat")
             start_time_mnznc = time.time()
             result = mnznc.solve(parameters)
@@ -291,7 +312,7 @@ def main():
 
         except Exception:
             # mnznc_execution_time = round(time.time() - start_time_mnznc, 2)
-            mnznc_run_times_failed2.append(mnznc_run_times_failed[-1])
+            mnznc_run_times_failed2.append(mnznc_run_times_failed2[-1])
 
     if len(greedy_run_times) > 0:
         print(f"Solutions found: {len(asp_run_times)}")
@@ -353,6 +374,18 @@ def main():
 
     else:
         print("No solutions found")
+        
+    try:
+        with open('./statistics/stats-instances.csv', 'w', newline='') as file:
+            ws = created_warehouses["success"] + created_warehouses["failed"]
+            ps = created_products["success"] + created_products["failed"]
+            itr = iteration_requests["success"] + iteration_requests["failed"]
+            writer = csv.writer(file)
+            writer.writerow(["t_warehouses t_products p_requests"])
+            for x, y, z in zip(ws, ps, itr):
+                writer.writerow([f"{x} {y} {z}"])
+    except Exception as e:
+        print(e)
 
 
 if __name__ == '__main__':
