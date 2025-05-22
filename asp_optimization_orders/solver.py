@@ -1,5 +1,5 @@
 from clingo import Control
-from dumbo_asp.primitives import Model
+from dumbo_asp.primitives.models import Model
 from context import Context
 from utils import read_file, parse_response, calculate_cost
 
